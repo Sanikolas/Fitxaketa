@@ -113,7 +113,7 @@
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
-      mostrar('✔ ' + d.mensaje + ' (ikastolatik ' + d.distancia + ' metroetara)', true);
+      mostrar('✔ ' + d.mensaje, true);
       $('coment').value = '';
     } catch (e) {
       mostrar(e.message, false);
