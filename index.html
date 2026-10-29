@@ -85,12 +85,12 @@
 
   function ubicacion() {
     return new Promise((res, rej) => {
-      if (!navigator.geolocation) return rej(new Error('Tu dispositivo no admite geolocalización'));
+      if (!navigator.geolocation) return rej(new Error('Zure gailuak ez du geolokalizaziorik onartzen'));
       navigator.geolocation.getCurrentPosition(
         p => res(p.coords),
         e => rej(new Error(e.code === 1
-          ? 'Permiso de ubicación denegado. Actívalo en el navegador para poder fichar.'
-          : 'No se pudo obtener la ubicación. Inténtalo de nuevo.')),
+          ? 'Kokapen-baimena ukatuta. Aktiba ezazu fitxatu ahal izateko..'
+          : 'Ezin izan da kokapena lortu. Saiatu berriro.')),
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     });
@@ -98,22 +98,22 @@
 
   async function fichar(tipo) {
     const comentario = $('coment').value.trim();
-    if (tipo === 'OTRO_MOTIVO' && !comentario) return mostrar('Indica el motivo de la salida.', false);
+    if (tipo === 'BESTE BAT' && !comentario) return mostrar('Irteeraren zergaitia idatzi.', false);
 
     const botones = document.querySelectorAll('button.f');
     botones.forEach(b => b.disabled = true);
-    mostrar('Obteniendo ubicación…', true);
+    mostrar('Kokapena bilatzen...', true);
 
     try {
       const c = await ubicacion();
-      mostrar('Registrando…', true);
+      mostrar('Izena ematen...', true);
       const r = await fetch(API_URL, {
         method: 'POST', // text/plain por defecto: evita preflight CORS
         body: JSON.stringify({ token, tipo, comentario, lat: c.latitude, lon: c.longitude, acc: c.accuracy })
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
-      mostrar('✔ ' + d.mensaje + ' (a ' + d.distancia + ' m del centro)', true);
+      mostrar('✔ ' + d.mensaje + ' (ikastolatik ' + d.distancia + ' metroetara)', true);
       $('coment').value = '';
     } catch (e) {
       mostrar(e.message, false);
