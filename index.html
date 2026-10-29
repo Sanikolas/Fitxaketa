@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fichaje</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --txt:#1c2733; --mut:#5d6b7a; --ok:#1e8e3e; --err:#d93025; --pri:#1a73e8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181d; --card:#1f252c; --txt:#e8edf2; --mut:#9aa7b4; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--txt);
+         display:flex; justify-content:center; padding:16px; }
+  main { width:100%; max-width:420px; background:var(--card); border-radius:16px; padding:24px;
+         box-shadow:0 2px 12px rgba(0,0,0,.08); }
+  h1 { margin:0 0 4px; font-size:1.4rem; }
+  #user { color:var(--mut); font-size:.9rem; margin-bottom:16px; min-height:1.2em; }
+  button.f { width:100%; padding:16px; margin:6px 0; font-size:1.05rem; border:0; border-radius:12px;
+             color:#fff; cursor:pointer; }
+  button.f:disabled { opacity:.5; cursor:wait; }
+  #bIn { background:var(--ok); } #bOut { background:var(--pri); }
+  #bMed { background:#f29900; } #bOtro { background:#7b5ea7; }
+  textarea { width:100%; margin-top:8px; padding:10px; border-radius:8px; border:1px solid var(--mut);
+             background:transparent; color:inherit; font:inherit; }
+  #msg { margin-top:14px; padding:12px; border-radius:8px; display:none; font-size:.95rem; }
+  #msg.ok { display:block; background:rgba(30,142,62,.15); color:var(--ok); }
+  #msg.err { display:block; background:rgba(217,48,37,.15); color:var(--err); }
+  #panel { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fichaje</h1>
+  <div id="user"></div>
+
+  <div id="login"></div>
+
+  <div id="panel">
+    <button class="f" id="bIn" data-tipo="ENTRADA">Fichar ENTRADA</button>
+    <button class="f" id="bOut" data-tipo="SALIDA">Fichar SALIDA</button>
+    <button class="f" id="bMed" data-tipo="MEDICO">Salgo al médico</button>
+    <button class="f" id="bOtro" data-tipo="OTRO_MOTIVO">Salgo por otro motivo</button>
+    <textarea id="coment" rows="2" placeholder="Motivo (obligatorio si es otro motivo)"></textarea>
+  </div>
+
+  <div id="msg"></div>
+</main>
+
+<script>
+  // ====== CONFIGURA ESTOS DOS VALORES ======
+  const API_URL   = 'PEGA_AQUI_LA_URL_DE_LA_APP_WEB_DE_APPS_SCRIPT'; // termina en /exec
+  const CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
+  const DOMINIO   = 'tuempresa.com';
+  // =========================================
+
+  let token = null;
+  const $ = id => document.getElementById(id);
+
+  function mostrar(texto, ok) {
+    const m = $('msg');
+    m.textContent = texto;
+    m.className = ok ? 'ok' : 'err';
+  }
+
+  function decodificar(jwt) {
+    return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+  }
+
+  window.onload = () => {
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      hd: DOMINIO,
+      callback: r => {
+        token = r.credential;
+        const p = decodificar(token);
+        $('user').textContent = p.name + ' · ' + p.email;
+        $('login').style.display = 'none';
+        $('panel').style.display = 'block';
+      }
+    });
+    google.accounts.id.renderButton($('login'), { theme: 'outline', size: 'large', text: 'signin_with' });
+  };
+
+  function ubicacion() {
+    return new Promise((res, rej) => {
+      if (!navigator.geolocation) return rej(new Error('Tu dispositivo no admite geolocalización'));
+      navigator.geolocation.getCurrentPosition(
+        p => res(p.coords),
+        e => rej(new Error(e.code === 1
+          ? 'Permiso de ubicación denegado. Actívalo en el navegador para poder fichar.'
+          : 'No se pudo obtener la ubicación. Inténtalo de nuevo.')),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  async function fichar(tipo) {
+    const comentario = $('coment').value.trim();
+    if (tipo === 'OTRO_MOTIVO' && !comentario) return mostrar('Indica el motivo de la salida.', false);
+
+    const botones = document.querySelectorAll('button.f');
+    botones.forEach(b => b.disabled = true);
+    mostrar('Obteniendo ubicación…', true);
+
+    try {
+      const c = await ubicacion();
+      mostrar('Registrando…', true);
+      const r = await fetch(API_URL, {
+        method: 'POST', // text/plain por defecto: evita preflight CORS
+        body: JSON.stringify({ token, tipo, comentario, lat: c.latitude, lon: c.longitude, acc: c.accuracy })
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      mostrar('✔ ' + d.mensaje + ' (a ' + d.distancia + ' m del centro)', true);
+      $('coment').value = '';
+    } catch (e) {
+      mostrar(e.message, false);
+    } finally {
+      botones.forEach(b => b.disabled = false);
+    }
+  }
+
+  document.querySelectorAll('button.f').forEach(b => b.addEventListener('click', () => fichar(b.dataset.tipo)));
+</script>
+</body>
+</html>
