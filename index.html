@@ -93,7 +93,9 @@
         $('login').style.display = 'none';
         $('panel').style.display = 'block';
       }
-    });
+      });
+    google.accounts.id.renderButton($('login'), { theme: 'outline', size: 'large', text: 'signin_with' });
+  };
 
   function ubicacion() {
     return new Promise((res, rej) => {
