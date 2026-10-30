@@ -75,15 +75,25 @@
       client_id: CLIENT_ID,
       hd: DOMINIO,
       callback: r => {
+        const p = decodificar(r.credential);
+        const email = String(p.email || '').toLowerCase();
+
+        if (!email.endsWith('@' + DOMINIO)) {
+          token = null;
+          google.accounts.id.disableAutoSelect();
+          $('panel').style.display = 'none';
+          $('user').textContent = '';
+          mostrar('Acceso denegado: ' + email + ' no pertenece a @' + DOMINIO + '. Inicia sesión con tu cuenta @' + DOMINIO + '.', false);
+          return;
+        }
+
         token = r.credential;
-        const p = decodificar(token);
-        $('user').textContent = p.name + ' · ' + p.email;
+        $('msg').className = '';
+        $('user').textContent = p.name + ' · ' + email;
         $('login').style.display = 'none';
         $('panel').style.display = 'block';
       }
     });
-    google.accounts.id.renderButton($('login'), { theme: 'outline', size: 'large', text: 'signin_with' });
-  };
 
   function ubicacion() {
     return new Promise((res, rej) => {
